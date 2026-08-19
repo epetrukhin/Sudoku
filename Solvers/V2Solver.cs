@@ -8,7 +8,7 @@ public static class V2Solver
     // Биты 1..9 установлены: 1<<1 | 1<<2 | ... | 1<<9 = 0x3FE.
     // Значение v ∈ [1..9] кодируется битом 1<<v, поэтому индекс младшего
     // установленного бита (BitOperations.TrailingZeroCount) совпадает с самим значением.
-    private const int FullMask = 0x3FE;
+    private const int FullMask = 0b_111_111_111_0;
 
     public static void Solve(char[][] sudoku, char[][] result)
     {
@@ -120,7 +120,7 @@ public static class V2Solver
 
         // Constraint propagation: naked singles и hidden singles, пока не сойдётся.
         // Возвращает false при конфликте (клетка без кандидатов).
-        public bool Propagate()
+        private bool Propagate()
         {
             while (true)
             {
