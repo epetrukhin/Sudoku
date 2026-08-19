@@ -12,12 +12,13 @@ public sealed class Config : ManualConfig
     {
         // AddHardwareCounters(HardwareCounter.CacheMisses, HardwareCounter.BranchInstructions, HardwareCounter.BranchMispredictions);
         AddDiagnoser(MemoryDiagnoser.Default);
-        AddColumn(StatisticColumn.P95, StatisticColumn.OperationsPerSecond);
+        AddColumn(StatisticColumn.P95, StatisticColumn.OperationsPerSecond, RankColumn.Arabic, CategoriesColumn.Default);
+        AddLogicalGroupRules(BenchmarkLogicalGroupRule.ByCategory);
 
         AddJob(
             Job.Default.WithRuntime(CoreRuntime.Core10_0)
-                .WithLaunchCount(3)
-                .WithWarmupCount(10)
-                .WithIterationCount(100));
+                .WithLaunchCount(1)
+                .WithWarmupCount(5)
+                .WithIterationCount(10));
     }
 }
