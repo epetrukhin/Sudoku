@@ -16,8 +16,8 @@ public sealed class Config : ManualConfig
 
         AddJob(
             Job.Default.WithRuntime(CoreRuntime.Core10_0)
-                .WithLaunchCount(1)
-                .WithWarmupCount(3)
-                .WithIterationCount(10));
+                .WithLaunchCount(3)
+                .WithWarmupCount(10)
+                .WithIterationCount(100));
     }
 }

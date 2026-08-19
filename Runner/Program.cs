@@ -12,12 +12,12 @@ internal static class Program
         CompareSolverResults();
         return;
 
-        var sudoku = FormatConverter.FromSudokuWikiToLeetCode(TestCases.Diabolical12);
-        var result = FormatConverter.FromSudokuWikiToLeetCode(TestCases.Diabolical12);
-
-        V1Solver.Solve(result, result);
-
-        Dump(sudoku, result);
+        // var sudoku = FormatConverter.FromSudokuWikiToLeetCode(TestCases.Diabolical12);
+        // var result = FormatConverter.FromSudokuWikiToLeetCode(TestCases.Diabolical12);
+        //
+        // V1Solver.Solve(result, result);
+        //
+        // Dump(sudoku, result);
     }
 
     private static void CompareSolverResults()
