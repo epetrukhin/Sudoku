@@ -263,7 +263,7 @@ public static class V2Solver
             // После Propagate таких клеток не меньше 2 кандидатов, поэтому
             // cutoff на 2 разрывает поиск досрочно.
             var bestIdx = -1;
-            var bestCount = 10;
+            var bestCount = BoardSize + 1;
             for (var idx = 0; idx < CellsCount; idx++)
             {
                 if (board._solved[idx])
