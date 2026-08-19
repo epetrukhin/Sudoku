@@ -349,13 +349,13 @@ public static class V1Solver
 
         public sealed class Concrete : Cell
         {
-            private static readonly Concrete[] Intances = Enumerable
+            private static readonly Concrete[] Instances = Enumerable
                 .Range(1, 9)
                 .Select(num => new Concrete(num))
                 .ToArray();
 
             public static Concrete GetFor(int num) =>
-                Intances[num - 1];
+                Instances[num - 1];
 
             private Concrete(int num) =>
                 Num = num;
