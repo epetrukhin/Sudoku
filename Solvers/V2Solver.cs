@@ -2,19 +2,16 @@
 
 namespace Solvers;
 
-public sealed class V2Solver
+public static class V2Solver
 {
-    public static Board ParseBoard(char[][] board)
+    public static void Solve(char[][] sudoku, char[][] result)
     {
-        return new Board(board);
+        var board = new Board(sudoku);
+        var resultBoard = Board.Solve(board);
+        resultBoard.DumpTo(result);
     }
 
-    public static void SolveSudoku(char[][] board)
-    {
-        Board.Solve(board);
-    }
-
-    public sealed class Board
+    private sealed class Board
     {
         private readonly Cell[][] _cells;
 
@@ -144,11 +141,6 @@ public sealed class V2Solver
                     targetRow[ci] = row[ci].AsChar();
                 }
             }
-        }
-
-        public static void Solve(char[][] board)
-        {
-            Solve(new Board(board)).DumpTo(board);
         }
 
         public static Board Solve(Board board)

@@ -15,9 +15,7 @@ internal static class Program
         var sudoku = FormatConverter.FromSudokuWikiToLeetCode(TestCases.Diabolical12);
         var result = FormatConverter.FromSudokuWikiToLeetCode(TestCases.Diabolical12);
 
-        var board = V1Solver.ParseBoard(result);
-        board = V1Solver.Board.Solve(board);
-        board.DumpTo(result);
+        V1Solver.Solve(result, result);
 
         Dump(sudoku, result);
     }
@@ -30,18 +28,14 @@ internal static class Program
 
     private static void CompareSolverResults(string sudoku)
     {
-        var v1Result = FormatConverter.FromSudokuWikiToLeetCode(sudoku);
-        var v1Board = V1Solver.ParseBoard(v1Result);
-        v1Board = V1Solver.Board.Solve(v1Board);
-        v1Board.DumpTo(v1Result);
+        var v1 = FormatConverter.FromSudokuWikiToLeetCode(sudoku);
+        V1Solver.Solve(v1, v1);
 
-        var v2Result = FormatConverter.FromSudokuWikiToLeetCode(sudoku);
-        var v2Board = V2Solver.ParseBoard(v2Result);
-        v2Board = V2Solver.Board.Solve(v2Board);
-        v2Board.DumpTo(v2Result);
+        var v2 = FormatConverter.FromSudokuWikiToLeetCode(sudoku);
+        V2Solver.Solve(v2, v2);
 
-        if (FormatConverter.FromLeetCodeToSudokuWiki(v1Result) != FormatConverter.FromLeetCodeToSudokuWiki(v2Result))
-            Dump(v1Result, v2Result);
+        if (FormatConverter.FromLeetCodeToSudokuWiki(v1) != FormatConverter.FromLeetCodeToSudokuWiki(v2))
+            Dump(v1, v2);
     }
 
     private static void Dump(char[][] left, char[][] right)
