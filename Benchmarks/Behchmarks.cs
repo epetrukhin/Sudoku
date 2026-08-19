@@ -8,7 +8,8 @@ namespace Benchmarks;
 // ReSharper disable once ClassCanBeSealed.Global
 public class Behchmarks
 {
-    private const int OperationPerInvoke = 50;
+    private const int V1OperationPerInvoke = 50;
+    private const int V2OperationPerInvoke = 500;
 
     private static readonly char[][] Result = new char[Constants.BoardSize][];
 
@@ -37,7 +38,7 @@ public class Behchmarks
     {
         var result = Result;
 
-        for (var i = 0; i < OperationPerInvoke; i++)
+        for (var i = 0; i < V1OperationPerInvoke; i++)
         {
             foreach (var sudoku in sudokus)
                 V1Solver.Solve(sudoku, result);
@@ -48,56 +49,56 @@ public class Behchmarks
     {
         var result = Result;
 
-        for (var i = 0; i < OperationPerInvoke; i++)
+        for (var i = 0; i < V2OperationPerInvoke; i++)
         {
             foreach (var sudoku in sudokus)
                 V2Solver.Solve(sudoku, result);
         }
     }
 
-    [Benchmark(Baseline = true, OperationsPerInvoke = OperationPerInvoke), BenchmarkCategory("V1")]
+    [Benchmark(Baseline = true, OperationsPerInvoke = V1OperationPerInvoke), BenchmarkCategory("V1")]
     public void V1Easy()
     {
         V1Solve(Easy);
     }
 
-    [Benchmark(OperationsPerInvoke = OperationPerInvoke), BenchmarkCategory("V1")]
+    [Benchmark(OperationsPerInvoke = V1OperationPerInvoke), BenchmarkCategory("V1")]
     public void V1Medium()
     {
         V1Solve(Medium);
     }
 
-    [Benchmark(OperationsPerInvoke = OperationPerInvoke), BenchmarkCategory("V1")]
+    [Benchmark(OperationsPerInvoke = V1OperationPerInvoke), BenchmarkCategory("V1")]
     public void V1Hard()
     {
         V1Solve(Hard);
     }
 
-    [Benchmark(OperationsPerInvoke = OperationPerInvoke), BenchmarkCategory("V1")]
+    [Benchmark(OperationsPerInvoke = V1OperationPerInvoke), BenchmarkCategory("V1")]
     public void V1Diabolical()
     {
         V1Solve(Diabolical);
     }
 
-    [Benchmark(Baseline = true, OperationsPerInvoke = OperationPerInvoke), BenchmarkCategory("V2")]
+    [Benchmark(Baseline = true, OperationsPerInvoke = V2OperationPerInvoke), BenchmarkCategory("V2")]
     public void V2Easy()
     {
         V2Solve(Easy);
     }
 
-    [Benchmark(OperationsPerInvoke = OperationPerInvoke), BenchmarkCategory("V2")]
+    [Benchmark(OperationsPerInvoke = V2OperationPerInvoke), BenchmarkCategory("V2")]
     public void V2Medium()
     {
         V2Solve(Medium);
     }
 
-    [Benchmark(OperationsPerInvoke = OperationPerInvoke), BenchmarkCategory("V2")]
+    [Benchmark(OperationsPerInvoke = V2OperationPerInvoke), BenchmarkCategory("V2")]
     public void V2Hard()
     {
         V2Solve(Hard);
     }
 
-    [Benchmark(OperationsPerInvoke = OperationPerInvoke), BenchmarkCategory("V2")]
+    [Benchmark(OperationsPerInvoke = V2OperationPerInvoke), BenchmarkCategory("V2")]
     public void V2Diabolical()
     {
         V2Solve(Diabolical);

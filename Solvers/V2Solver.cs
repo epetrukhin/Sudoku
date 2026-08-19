@@ -1,416 +1,313 @@
-﻿using static Solvers.Constants;
+using System.Numerics;
+using static Solvers.Constants;
 
 namespace Solvers;
 
 public static class V2Solver
 {
+    // Биты 1..9 установлены: 1<<1 | 1<<2 | ... | 1<<9 = 0x3FE.
+    // Значение v ∈ [1..9] кодируется битом 1<<v, поэтому индекс младшего
+    // установленного бита (BitOperations.TrailingZeroCount) совпадает с самим значением.
+    private const int FullMask = 0x3FE;
+
     public static void Solve(char[][] sudoku, char[][] result)
     {
         var board = new Board(sudoku);
-        var resultBoard = Board.Solve(board);
-        resultBoard.DumpTo(result);
+        var solved = Board.Solve(board) ?? throw new InvalidOperationException("Failed to solve");
+        solved.DumpTo(result);
     }
 
     private sealed class Board
     {
-        private readonly Cell[][] _cells;
+        private readonly int[] _candidates; // маска кандидатов для каждой из 81 клетки
+        private readonly bool[] _solved;    // зафиксирована ли клетка в масках занятости
+        private readonly int[] _rowMask;    // занятые значения по строкам
+        private readonly int[] _colMask;    // занятые значения по столбцам
+        private readonly int[] _boxMask;    // занятые значения по боксам
+        private int _solvedCount;
 
-        public Board(char[][] board)
+        private Board()
         {
-            var cells = new Cell[BoardSize][];
-            for (var ri = 0; ri < BoardSize; ri++)
-            {
-                var row = new Cell[BoardSize];
-                cells[ri] = row;
-                var sourceRow = board[ri];
-
-                for (var ci = 0; ci < BoardSize; ci++)
-                {
-                    row[ci] = Cell.Parse(sourceRow[ci]);
-                }
-            }
-
-            _cells = cells;
+            _candidates = new int[CellsCount];
+            _solved = new bool[CellsCount];
+            _rowMask = new int[BoardSize];
+            _colMask = new int[BoardSize];
+            _boxMask = new int[BoardSize];
         }
 
-        private Board(Cell[][] cells) =>
-            _cells = cells;
+        public Board(char[][] board) : this()
+        {
+            for (var i = 0; i < CellsCount; i++)
+                _candidates[i] = FullMask;
+
+            for (var ri = 0; ri < BoardSize; ri++)
+            {
+                var row = board[ri];
+                for (var ci = 0; ci < BoardSize; ci++)
+                {
+                    var ch = row[ci];
+                    if (ch != '.')
+                        Assign(ri * BoardSize + ci, ch - '0');
+                }
+            }
+        }
 
         private Board Clone()
         {
-            var sourceCells = _cells;
-            var targetCells = new Cell[BoardSize][];
-            for (var ri = 0; ri < BoardSize; ri++)
-            {
-                var sourceRow = sourceCells[ri];
-                var targetRow = new Cell[BoardSize];
-                targetCells[ri] = targetRow;
-
-                for (var ci = 0; ci < BoardSize; ci++)
-                    targetRow[ci] = sourceRow[ci].Clone();
-            }
-
-            return new(targetCells);
+            var copy = new Board();
+            Array.Copy(_candidates, copy._candidates, CellsCount);
+            Array.Copy(_solved, copy._solved, CellsCount);
+            Array.Copy(_rowMask, copy._rowMask, BoardSize);
+            Array.Copy(_colMask, copy._colMask, BoardSize);
+            Array.Copy(_boxMask, copy._boxMask, BoardSize);
+            copy._solvedCount = _solvedCount;
+            return copy;
         }
 
-        private bool IsSolved() =>
-            _cells.All(row => row.All(cell => cell is Cell.Concrete));
-
-        private bool IsValid()
+        // Фиксирует в клетке значение: обновляет маски занятости и редуцирует
+        // кандидатов всех соседей по строке/столбцу/боксу. Конфликт (сосед
+        // остаётся без кандидатов) обнаруживается позже в Propagate.
+        private void Assign(int idx, int value)
         {
-            if (_cells.SelectMany(_ => _).OfType<Cell.NonConcrete>().Any(cell => cell.IsEmpty))
-                return false;
+            var r = idx / BoardSize;
+            var c = idx % BoardSize;
+            var b = (r / BoxSize) * BoxSize + c / BoxSize;
+            var bit = 1 << value;
 
-            for (var ri = 0; ri < BoardSize; ri++)
+            _rowMask[r] |= bit;
+            _colMask[c] |= bit;
+            _boxMask[b] |= bit;
+
+            var rm = ~bit;
+
+            // строка
+            var rowStart = r * BoardSize;
+            for (var i = 0; i < BoardSize; i++)
             {
-                if (!IsValid(GetSameRowInterferCellsFor(ri)))
-                    return false;
+                var j = rowStart + i;
+                if (j != idx)
+                    _candidates[j] &= rm;
             }
 
-            for (var ci = 0; ci < BoardSize; ci++)
+            // столбец
+            for (var i = 0; i < BoardSize; i++)
             {
-                if (!IsValid(GetSameColumnInterferCellsFor(ci)))
-                    return false;
+                var j = i * BoardSize + c;
+                if (j != idx)
+                    _candidates[j] &= rm;
             }
 
-            for (var ri = 0; ri < BoardSize; ri += 3)
+            // бокс
+            var br = (b / BoxSize) * BoxSize;
+            var bc = (b % BoxSize) * BoxSize;
+            for (var rr = br; rr < br + BoxSize; rr++)
             {
-                for (var ci = 0; ci < BoardSize; ci += 3)
+                for (var cc = bc; cc < bc + BoxSize; cc++)
                 {
-                    if (!IsValid(GetSameBoxInterferCellsFor(ri, ci)))
+                    var j = rr * BoardSize + cc;
+                    if (j != idx)
+                        _candidates[j] &= rm;
+                }
+            }
+
+            _candidates[idx] = bit;
+            if (!_solved[idx])
+            {
+                _solved[idx] = true;
+                _solvedCount++;
+            }
+        }
+
+        // Constraint propagation: naked singles и hidden singles, пока не сойдётся.
+        // Возвращает false при конфликте (клетка без кандидатов).
+        public bool Propagate()
+        {
+            while (true)
+            {
+                var changed = false;
+
+                // naked singles: единственный кандидат → фиксируем
+                for (var idx = 0; idx < CellsCount; idx++)
+                {
+                    if (_solved[idx])
+                        continue;
+
+                    var m = _candidates[idx];
+                    if (m == 0)
                         return false;
-                }
-            }
-
-            return true;
-
-            static bool IsValid(IEnumerable<Cell> cells) =>
-                cells
-                    .OfType<Cell.Concrete>()
-                    .Select(c => c.Num)
-                    .GroupBy(_ => _)
-                    .All(g => g.Count() == 1);
-
-            IEnumerable<Cell> GetSameRowInterferCellsFor(int rowIndex) =>
-                _cells[rowIndex];
-
-            IEnumerable<Cell> GetSameColumnInterferCellsFor(int columnIndex)
-            {
-                var cells = _cells;
-
-                for (var ri = 0; ri < BoardSize; ri++)
-                {
-                    yield return cells[ri][columnIndex];
-                }
-            }
-
-            IEnumerable<Cell> GetSameBoxInterferCellsFor(int rowIndex, int columnIndex)
-            {
-                var cells = _cells;
-
-                var startRowIndex = GetBoxStartIndex(rowIndex);
-                var startColumnIndex = GetBoxStartIndex(columnIndex);
-                for (var ri = startRowIndex; ri < startRowIndex + BoxSize; ri++)
-                {
-                    for (var ci = startColumnIndex; ci < startColumnIndex + BoxSize; ci++)
+                    if ((m & (m - 1)) == 0)
                     {
-                        yield return cells[ri][ci];
+                        Assign(idx, BitOperations.TrailingZeroCount(m));
+                        changed = true;
                     }
                 }
 
-                static int GetBoxStartIndex(int index) =>
-                    index switch
+                // hidden singles: строки
+                for (var r = 0; r < BoardSize; r++)
+                {
+                    var used = _rowMask[r];
+                    var rowStart = r * BoardSize;
+                    for (var v = 1; v <= BoardSize; v++)
                     {
-                        < BoxSize => 0,
-                        < BoxSize * 2 => BoxSize,
-                        _ => BoxSize * 2
-                    };
+                        var bit = 1 << v;
+                        if ((used & bit) != 0)
+                            continue;
+
+                        var pos = -1;
+                        var count = 0;
+                        for (var c = 0; c < BoardSize; c++)
+                        {
+                            var idx = rowStart + c;
+                            if (!_solved[idx] && (_candidates[idx] & bit) != 0)
+                            {
+                                if (++count > 1)
+                                    break;
+                                pos = idx;
+                            }
+                        }
+
+                        if (count == 1)
+                        {
+                            Assign(pos, v);
+                            changed = true;
+                        }
+                    }
+                }
+
+                // hidden singles: столбцы
+                for (var c = 0; c < BoardSize; c++)
+                {
+                    var used = _colMask[c];
+                    for (var v = 1; v <= BoardSize; v++)
+                    {
+                        var bit = 1 << v;
+                        if ((used & bit) != 0)
+                            continue;
+
+                        var pos = -1;
+                        var count = 0;
+                        for (var r = 0; r < BoardSize; r++)
+                        {
+                            var idx = r * BoardSize + c;
+                            if (!_solved[idx] && (_candidates[idx] & bit) != 0)
+                            {
+                                if (++count > 1)
+                                    break;
+                                pos = idx;
+                            }
+                        }
+
+                        if (count == 1)
+                        {
+                            Assign(pos, v);
+                            changed = true;
+                        }
+                    }
+                }
+
+                // hidden singles: боксы
+                for (var b = 0; b < BoardSize; b++)
+                {
+                    var used = _boxMask[b];
+                    var br = (b / BoxSize) * BoxSize;
+                    var bc = (b % BoxSize) * BoxSize;
+                    for (var v = 1; v <= BoardSize; v++)
+                    {
+                        var bit = 1 << v;
+                        if ((used & bit) != 0)
+                            continue;
+
+                        var pos = -1;
+                        var count = 0;
+                        for (var rr = br; rr < br + BoxSize; rr++)
+                        {
+                            for (var cc = bc; cc < bc + BoxSize; cc++)
+                            {
+                                var idx = rr * BoardSize + cc;
+                                if (!_solved[idx] && (_candidates[idx] & bit) != 0)
+                                {
+                                    if (++count > 1)
+                                        break;
+                                    pos = idx;
+                                }
+                            }
+                            if (count > 1)
+                                break;
+                        }
+
+                        if (count == 1)
+                        {
+                            Assign(pos, v);
+                            changed = true;
+                        }
+                    }
+                }
+
+                if (!changed)
+                    return true;
             }
+        }
+
+        public static Board? Solve(Board board)
+        {
+            if (!board.Propagate())
+                return null;
+            if (board._solvedCount == CellsCount)
+                return board;
+            return Backtrack(board);
+        }
+
+        private static Board? Backtrack(Board board)
+        {
+            // MRV: нерешённая клетка с минимальным числом кандидатов.
+            // После Propagate таких клеток не меньше 2 кандидатов, поэтому
+            // cutoff на 2 разрывает поиск досрочно.
+            var bestIdx = -1;
+            var bestCount = 10;
+            for (var idx = 0; idx < CellsCount; idx++)
+            {
+                if (board._solved[idx])
+                    continue;
+
+                var count = BitOperations.PopCount((uint)board._candidates[idx]);
+                if (count < bestCount)
+                {
+                    bestCount = count;
+                    bestIdx = idx;
+                    if (count == 2)
+                        break;
+                }
+            }
+
+            var candidates = board._candidates[bestIdx];
+            while (candidates != 0)
+            {
+                var v = BitOperations.TrailingZeroCount(candidates);
+
+                var clone = board.Clone();
+                clone.Assign(bestIdx, v);
+
+                var result = Solve(clone);
+                if (result != null)
+                    return result;
+
+                candidates &= candidates - 1;
+            }
+
+            return null;
         }
 
         public void DumpTo(char[][] board)
         {
-            var cells = _cells;
             for (var ri = 0; ri < BoardSize; ri++)
             {
-                var row = cells[ri];
                 var targetRow = board[ri];
-
+                var rowStart = ri * BoardSize;
                 for (var ci = 0; ci < BoardSize; ci++)
                 {
-                    targetRow[ci] = row[ci].AsChar();
+                    var m = _candidates[rowStart + ci];
+                    targetRow[ci] = (char)('0' + BitOperations.TrailingZeroCount(m));
                 }
-            }
-        }
-
-        public static Board Solve(Board board)
-        {
-            board.Solve();
-
-            return board.IsSolved()
-                ? board
-                : TrySolveWithSubstitute(board) ?? throw new ApplicationException("Failed to solve");
-
-            static Board? TrySolveWithSubstitute(Board board)
-            {
-                var (ri, ci) = GetPositionOfNonConcreteCellWithMinNums(board);
-                var cell = (Cell.NonConcrete)board._cells[ri][ci];
-
-                foreach (var num in cell.GetNums())
-                {
-                    var clone = board.Clone();
-                    clone._cells[ri][ci] = Cell.Concrete.GetFor(num);
-
-                    clone.Solve();
-
-                    if (!clone.IsValid())
-                        continue;
-
-                    if (clone.IsSolved())
-                        return clone;
-
-                    var next = TrySolveWithSubstitute(clone);
-                    if (next != null)
-                        return next;
-                }
-
-                return null;
-
-                static (int ri, int ci) GetPositionOfNonConcreteCellWithMinNums(Board board)
-                {
-                    var minNumsCount = 10;
-                    var minNumsRowIndex = BoardSize;
-                    var minNumsColIndex = BoardSize;
-
-                    var cells = board._cells;
-
-                    for (var ri = 0; ri < BoardSize; ri++)
-                    {
-                        var row = cells[ri];
-                        for (var ci = 0; ci < BoardSize; ci++)
-                        {
-                            var cell = row[ci];
-                            if (cell is Cell.NonConcrete nc)
-                            {
-                                var numsCount = nc.Count;
-                                if (numsCount == 2)
-                                    return (ri, ci);
-
-                                if (numsCount < minNumsCount)
-                                {
-                                    minNumsCount = numsCount;
-                                    minNumsRowIndex = ri;
-                                    minNumsColIndex = ci;
-                                }
-                            }
-                        }
-                    }
-
-                    return (minNumsRowIndex, minNumsColIndex);
-                }
-            }
-        }
-
-        private void Solve()
-        {
-            while (true)
-            {
-                var reduced = false;
-
-                for (var ri = 0; ri < BoardSize; ri++)
-                {
-                    for (var ci = 0; ci < BoardSize; ci++)
-                    {
-                        reduced |= TryReduce(ri, ci);
-                    }
-                }
-
-                if (!reduced)
-                    return;
-            }
-
-            bool TryReduce(int ri, int ci)
-            {
-                var cells = _cells;
-
-                var targetCell = cells[ri][ci] as Cell.NonConcrete;
-                if (targetCell == null)
-                    return false;
-
-                var reduced = false;
-                foreach (var cell in GetInterferCellsFor(ri, ci).OfType<Cell.Concrete>())
-                {
-                    var reduceResult = targetCell.Reduce(cell);
-                    if (reduceResult != null)
-                    {
-                        cells[ri][ci] = reduceResult;
-
-                        if (reduceResult is Cell.NonConcrete nc)
-                            targetCell = nc;
-                        else
-                            return true;
-
-                        reduced = true;
-                    }
-                }
-
-                foreach (var num in targetCell.GetNums())
-                {
-                    if (IsHiddenSingle(num, GetSameRowInterferCellsFor(ri, ci)) ||
-                        IsHiddenSingle(num, GetSameColumnInterferCellsFor(ri, ci)) ||
-                        IsHiddenSingle(num, GetSameBoxInterferCellsFor(ri, ci)))
-                    {
-                        cells[ri][ci] = Cell.Concrete.GetFor(num);
-                        return true;
-                    }
-
-                    static bool IsHiddenSingle(int num, IEnumerable<Cell> cells) =>
-                        cells.OfType<Cell.NonConcrete>().All(c => !c.ContainsNum(num));
-                }
-
-                return reduced;
-
-                IEnumerable<Cell> GetSameRowInterferCellsFor(int rowIndex, int columnIndex)
-                {
-                    var cells = _cells;
-
-                    var row = cells[rowIndex];
-                    for (var ci = 0; ci < BoardSize; ci++)
-                    {
-                        if (ci == columnIndex)
-                            continue;
-
-                        yield return row[ci];
-                    }
-                }
-
-                IEnumerable<Cell> GetSameColumnInterferCellsFor(int rowIndex, int columnIndex)
-                {
-                    var cells = _cells;
-
-                    for (var ri = 0; ri < BoardSize; ri++)
-                    {
-                        if (ri == rowIndex)
-                            continue;
-
-                        yield return cells[ri][columnIndex];
-                    }
-                }
-
-                IEnumerable<Cell> GetSameBoxInterferCellsFor(int rowIndex, int columnIndex)
-                {
-                    var cells = _cells;
-
-                    var startRowIndex = GetBoxStartIndex(ri);
-                    var startColumnIndex = GetBoxStartIndex(ci);
-                    for (var ri = startRowIndex; ri < startRowIndex + BoxSize; ri++)
-                    {
-                        for (var ci = startColumnIndex; ci < startColumnIndex + BoxSize; ci++)
-                        {
-                            if (ri == rowIndex && ci == columnIndex)
-                                continue;
-
-                            yield return cells[ri][ci];
-                        }
-                    }
-
-                    static int GetBoxStartIndex(int index) =>
-                        index switch
-                        {
-                            < BoxSize => 0,
-                            < BoxSize * 2 => BoxSize,
-                            _ => BoxSize * 2
-                        };
-                }
-
-                IEnumerable<Cell> GetInterferCellsFor(int rowIndex, int columnIndex) =>
-                [
-                    ..GetSameRowInterferCellsFor(rowIndex, columnIndex),
-                    ..GetSameColumnInterferCellsFor(rowIndex, columnIndex),
-                    ..GetSameBoxInterferCellsFor(rowIndex, columnIndex)
-                ];
-            }
-        }
-    }
-
-    private abstract class Cell
-    {
-        private Cell()
-        {}
-
-        public abstract char AsChar();
-
-        public abstract Cell Clone();
-
-        public static Cell Parse(char c) =>
-            c == '.'
-                ? new NonConcrete()
-                : Concrete.GetFor(int.Parse(new ReadOnlySpan<char>(ref c)));
-
-        public sealed class Concrete : Cell
-        {
-            private static readonly Concrete[] Intances = Enumerable
-                .Range(1, 9)
-                .Select(num => new Concrete(num))
-                .ToArray();
-
-            public static Concrete GetFor(int num) =>
-                Intances[num - 1];
-
-            private Concrete(int num) =>
-                Num = num;
-
-            public int Num { get; }
-
-            public override char AsChar() =>
-                Num.ToString()[0];
-
-            public override Concrete Clone() =>
-                this;
-        }
-
-        public sealed class NonConcrete : Cell
-        {
-            private static readonly int[] AllNums = [1, 2, 3, 4, 5, 6, 7, 8, 9];
-
-            private readonly HashSet<int> _possibleNums;
-
-            public NonConcrete()
-                : this(new(AllNums))
-            {}
-
-            private NonConcrete(HashSet<int> possibleNums) =>
-                _possibleNums = possibleNums;
-
-            public int Count =>
-                _possibleNums.Count;
-
-            public bool IsEmpty =>
-                _possibleNums.Count == 0;
-
-            public override char AsChar() =>
-                '.';
-
-            public override NonConcrete Clone() =>
-                new(new(_possibleNums));
-
-            public IEnumerable<int> GetNums() =>
-                _possibleNums;
-
-            public bool ContainsNum(int num) =>
-                _possibleNums.Contains(num);
-
-            public Cell? Reduce(Concrete cc)
-            {
-                var possibleNums = _possibleNums;
-
-                if (!possibleNums.Remove(cc.Num))
-                    return null;
-
-                if (possibleNums.Count == 1)
-                    return Concrete.GetFor(possibleNums.First());
-
-                return this;
             }
         }
     }
