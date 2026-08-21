@@ -111,11 +111,8 @@ public static class V2Solver
             }
 
             _candidates[idx] = valueBit;
-            if (!_solved[idx])
-            {
-                _solved[idx] = true;
-                _solvedCount++;
-            }
+            _solved[idx] = true;
+            _solvedCount++;
         }
 
         // Constraint propagation: naked singles и hidden singles, пока не сойдётся.
@@ -124,7 +121,7 @@ public static class V2Solver
         {
             while (true)
             {
-                var changed = false;
+                var solvedBeforePropogation = _solvedCount;
 
                 // naked singles: единственный кандидат → фиксируем
                 for (var idx = 0; idx < CellsCount; idx++)
@@ -132,33 +129,32 @@ public static class V2Solver
                     if (_solved[idx])
                         continue;
 
-                    var m = _candidates[idx];
-                    if (m == 0)
+                    var candidate = _candidates[idx];
+                    if (candidate == 0)
                         return false;
-                    if ((m & (m - 1)) == 0)
+                    if ((candidate & (candidate - 1)) == 0)
                     {
-                        Assign(idx, BitOperations.TrailingZeroCount(m));
-                        changed = true;
+                        Assign(idx, BitOperations.TrailingZeroCount(candidate));
                     }
                 }
 
                 // hidden singles: строки
-                for (var r = 0; r < BoardSize; r++)
+                for (var row = 0; row < BoardSize; row++)
                 {
-                    var used = _rowMask[r];
-                    var rowStart = r * BoardSize;
-                    for (var v = 1; v <= BoardSize; v++)
+                    var used = _rowMask[row];
+                    var rowStart = row * BoardSize;
+                    for (var value = 1; value <= BoardSize; value++)
                     {
-                        var bit = 1 << v;
-                        if ((used & bit) != 0)
+                        var valueBit = 1 << value;
+                        if ((used & valueBit) != 0)
                             continue;
 
                         var pos = -1;
                         var count = 0;
-                        for (var c = 0; c < BoardSize; c++)
+                        for (var col = 0; col < BoardSize; col++)
                         {
-                            var idx = rowStart + c;
-                            if (!_solved[idx] && (_candidates[idx] & bit) != 0)
+                            var idx = rowStart + col;
+                            if (!_solved[idx] && (_candidates[idx] & valueBit) != 0)
                             {
                                 if (++count > 1)
                                     break;
@@ -168,28 +164,27 @@ public static class V2Solver
 
                         if (count == 1)
                         {
-                            Assign(pos, v);
-                            changed = true;
+                            Assign(pos, value);
                         }
                     }
                 }
 
                 // hidden singles: столбцы
-                for (var c = 0; c < BoardSize; c++)
+                for (var col = 0; col < BoardSize; col++)
                 {
-                    var used = _colMask[c];
-                    for (var v = 1; v <= BoardSize; v++)
+                    var used = _colMask[col];
+                    for (var value = 1; value <= BoardSize; value++)
                     {
-                        var bit = 1 << v;
-                        if ((used & bit) != 0)
+                        var valueBit = 1 << value;
+                        if ((used & valueBit) != 0)
                             continue;
 
                         var pos = -1;
                         var count = 0;
-                        for (var r = 0; r < BoardSize; r++)
+                        for (var row = 0; row < BoardSize; row++)
                         {
-                            var idx = r * BoardSize + c;
-                            if (!_solved[idx] && (_candidates[idx] & bit) != 0)
+                            var idx = row * BoardSize + col;
+                            if (!_solved[idx] && (_candidates[idx] & valueBit) != 0)
                             {
                                 if (++count > 1)
                                     break;
@@ -199,32 +194,31 @@ public static class V2Solver
 
                         if (count == 1)
                         {
-                            Assign(pos, v);
-                            changed = true;
+                            Assign(pos, value);
                         }
                     }
                 }
 
                 // hidden singles: боксы
-                for (var b = 0; b < BoardSize; b++)
+                for (var box = 0; box < BoardSize; box++)
                 {
-                    var used = _boxMask[b];
-                    var br = (b / BoxSize) * BoxSize;
-                    var bc = (b % BoxSize) * BoxSize;
-                    for (var v = 1; v <= BoardSize; v++)
+                    var used = _boxMask[box];
+                    var boxRow = (box / BoxSize) * BoxSize;
+                    var boxCol = (box % BoxSize) * BoxSize;
+                    for (var value = 1; value <= BoardSize; value++)
                     {
-                        var bit = 1 << v;
-                        if ((used & bit) != 0)
+                        var valueBit = 1 << value;
+                        if ((used & valueBit) != 0)
                             continue;
 
                         var pos = -1;
                         var count = 0;
-                        for (var rr = br; rr < br + BoxSize; rr++)
+                        for (var row = boxRow; row < boxRow + BoxSize; row++)
                         {
-                            for (var cc = bc; cc < bc + BoxSize; cc++)
+                            for (var col = boxCol; col < boxCol + BoxSize; col++)
                             {
-                                var idx = rr * BoardSize + cc;
-                                if (!_solved[idx] && (_candidates[idx] & bit) != 0)
+                                var idx = row * BoardSize + col;
+                                if (!_solved[idx] && (_candidates[idx] & valueBit) != 0)
                                 {
                                     if (++count > 1)
                                         break;
@@ -237,13 +231,12 @@ public static class V2Solver
 
                         if (count == 1)
                         {
-                            Assign(pos, v);
-                            changed = true;
+                            Assign(pos, value);
                         }
                     }
                 }
 
-                if (!changed)
+                if (_solvedCount == solvedBeforePropogation)
                     return true;
             }
         }
