@@ -69,48 +69,48 @@ public static class V2Solver
         // остаётся без кандидатов) обнаруживается позже в Propagate.
         private void Assign(int idx, int value)
         {
-            var r = idx / BoardSize;
-            var c = idx % BoardSize;
-            var b = (r / BoxSize) * BoxSize + c / BoxSize;
-            var bit = 1 << value;
+            var row = idx / BoardSize;
+            var col = idx % BoardSize;
+            var box = (row / BoxSize) * BoxSize + col / BoxSize;
+            var valueBit = 1 << value;
 
-            _rowMask[r] |= bit;
-            _colMask[c] |= bit;
-            _boxMask[b] |= bit;
+            _rowMask[row] |= valueBit;
+            _colMask[col] |= valueBit;
+            _boxMask[box] |= valueBit;
 
-            var rm = ~bit;
+            var removeMask = ~valueBit;
 
             // строка
-            var rowStart = r * BoardSize;
+            var rowStart = row * BoardSize;
             for (var i = 0; i < BoardSize; i++)
             {
                 var j = rowStart + i;
                 if (j != idx)
-                    _candidates[j] &= rm;
+                    _candidates[j] &= removeMask;
             }
 
             // столбец
             for (var i = 0; i < BoardSize; i++)
             {
-                var j = i * BoardSize + c;
+                var j = i * BoardSize + col;
                 if (j != idx)
-                    _candidates[j] &= rm;
+                    _candidates[j] &= removeMask;
             }
 
             // бокс
-            var br = (b / BoxSize) * BoxSize;
-            var bc = (b % BoxSize) * BoxSize;
+            var br = (box / BoxSize) * BoxSize;
+            var bc = (box % BoxSize) * BoxSize;
             for (var rr = br; rr < br + BoxSize; rr++)
             {
                 for (var cc = bc; cc < bc + BoxSize; cc++)
                 {
                     var j = rr * BoardSize + cc;
                     if (j != idx)
-                        _candidates[j] &= rm;
+                        _candidates[j] &= removeMask;
                 }
             }
 
-            _candidates[idx] = bit;
+            _candidates[idx] = valueBit;
             if (!_solved[idx])
             {
                 _solved[idx] = true;
