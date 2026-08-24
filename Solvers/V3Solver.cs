@@ -79,21 +79,18 @@ public static class V3Solver
 
             var removeMask = ~valueBit;
 
-            RemoveFromGroup(GetRowIndexes(row), idx, removeMask);
-            RemoveFromGroup(GetColumnIndexes(col), idx, removeMask);
-            RemoveFromGroup(GetBoxIndexes(box), idx, removeMask);
+            RemoveFromGroup(GetRowIndexes(row), removeMask);
+            RemoveFromGroup(GetColumnIndexes(col), removeMask);
+            RemoveFromGroup(GetBoxIndexes(box), removeMask);
 
             _candidates[idx] = valueBit;
             _solved[idx] = true;
             _solvedCount++;
 
-            void RemoveFromGroup(ReadOnlySpan<byte> cells, int self, int mask)
+            void RemoveFromGroup(ReadOnlySpan<byte> cells, int mask)
             {
                 foreach (var j in cells)
-                {
-                    if (j != self)
-                        _candidates[j] &= mask;
-                }
+                    _candidates[j] &= mask;
             }
         }
 
