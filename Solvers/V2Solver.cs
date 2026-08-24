@@ -71,7 +71,7 @@ public static class V2Solver
         {
             var row = idx / BoardSize;
             var col = idx % BoardSize;
-            var box = (row / BoxSize) * BoxSize + col / BoxSize;
+            var box = BoxOf[idx];
             var valueBit = 1 << value;
 
             _rowMask[row] |= valueBit;
@@ -80,39 +80,22 @@ public static class V2Solver
 
             var removeMask = ~valueBit;
 
-            // строка
-            var rowStart = row * BoardSize;
-            for (var i = 0; i < BoardSize; i++)
-            {
-                var j = rowStart + i;
-                if (j != idx)
-                    _candidates[j] &= removeMask;
-            }
-
-            // столбец
-            for (var i = 0; i < BoardSize; i++)
-            {
-                var j = i * BoardSize + col;
-                if (j != idx)
-                    _candidates[j] &= removeMask;
-            }
-
-            // бокс
-            var br = (box / BoxSize) * BoxSize;
-            var bc = (box % BoxSize) * BoxSize;
-            for (var rr = br; rr < br + BoxSize; rr++)
-            {
-                for (var cc = bc; cc < bc + BoxSize; cc++)
-                {
-                    var j = rr * BoardSize + cc;
-                    if (j != idx)
-                        _candidates[j] &= removeMask;
-                }
-            }
+            RemoveFromGroup(GetRowIndexes(row), idx, removeMask);
+            RemoveFromGroup(GetColumnIndexes(col), idx, removeMask);
+            RemoveFromGroup(GetBoxIndexes(box), idx, removeMask);
 
             _candidates[idx] = valueBit;
             _solved[idx] = true;
             _solvedCount++;
+
+            void RemoveFromGroup(ReadOnlySpan<byte> cells, int self, int mask)
+            {
+                foreach (var j in cells)
+                {
+                    if (j != self)
+                        _candidates[j] &= mask;
+                }
+            }
         }
 
         // Constraint propagation: naked singles и hidden singles, пока не сойдётся.
@@ -132,112 +115,52 @@ public static class V2Solver
                     var candidate = _candidates[idx];
                     if (candidate == 0)
                         return false;
+
                     if ((candidate & (candidate - 1)) == 0)
-                    {
                         Assign(idx, BitOperations.TrailingZeroCount(candidate));
-                    }
                 }
 
                 // hidden singles: строки
                 for (var row = 0; row < BoardSize; row++)
-                {
-                    var used = _rowMask[row];
-                    var rowStart = row * BoardSize;
-                    for (var value = 1; value <= BoardSize; value++)
-                    {
-                        var valueBit = 1 << value;
-                        if ((used & valueBit) != 0)
-                            continue;
-
-                        var pos = -1;
-                        var count = 0;
-                        for (var col = 0; col < BoardSize; col++)
-                        {
-                            var idx = rowStart + col;
-                            if (!_solved[idx] && (_candidates[idx] & valueBit) != 0)
-                            {
-                                if (++count > 1)
-                                    break;
-                                pos = idx;
-                            }
-                        }
-
-                        if (count == 1)
-                        {
-                            Assign(pos, value);
-                        }
-                    }
-                }
+                    FindHiddenSingles(GetRowIndexes(row), _rowMask[row]);
 
                 // hidden singles: столбцы
                 for (var col = 0; col < BoardSize; col++)
-                {
-                    var used = _colMask[col];
-                    for (var value = 1; value <= BoardSize; value++)
-                    {
-                        var valueBit = 1 << value;
-                        if ((used & valueBit) != 0)
-                            continue;
-
-                        var pos = -1;
-                        var count = 0;
-                        for (var row = 0; row < BoardSize; row++)
-                        {
-                            var idx = row * BoardSize + col;
-                            if (!_solved[idx] && (_candidates[idx] & valueBit) != 0)
-                            {
-                                if (++count > 1)
-                                    break;
-                                pos = idx;
-                            }
-                        }
-
-                        if (count == 1)
-                        {
-                            Assign(pos, value);
-                        }
-                    }
-                }
+                    FindHiddenSingles(GetColumnIndexes(col), _colMask[col]);
 
                 // hidden singles: боксы
                 for (var box = 0; box < BoardSize; box++)
-                {
-                    var used = _boxMask[box];
-                    var boxRow = (box / BoxSize) * BoxSize;
-                    var boxCol = (box % BoxSize) * BoxSize;
-                    for (var value = 1; value <= BoardSize; value++)
-                    {
-                        var valueBit = 1 << value;
-                        if ((used & valueBit) != 0)
-                            continue;
-
-                        var pos = -1;
-                        var count = 0;
-                        for (var row = boxRow; row < boxRow + BoxSize; row++)
-                        {
-                            for (var col = boxCol; col < boxCol + BoxSize; col++)
-                            {
-                                var idx = row * BoardSize + col;
-                                if (!_solved[idx] && (_candidates[idx] & valueBit) != 0)
-                                {
-                                    if (++count > 1)
-                                        break;
-                                    pos = idx;
-                                }
-                            }
-                            if (count > 1)
-                                break;
-                        }
-
-                        if (count == 1)
-                        {
-                            Assign(pos, value);
-                        }
-                    }
-                }
+                    FindHiddenSingles(GetBoxIndexes(box), _boxMask[box]);
 
                 if (_solvedCount == solvedBeforePropogation)
                     return true;
+            }
+
+            void FindHiddenSingles(ReadOnlySpan<byte> cells, int used)
+            {
+                for (var value = 1; value <= BoardSize; value++)
+                {
+                    var valueBit = 1 << value;
+                    if ((used & valueBit) != 0)
+                        continue;
+
+                    var pos = -1;
+                    var count = 0;
+                    foreach (var idx in cells)
+                    {
+                        if (!_solved[idx] && (_candidates[idx] & valueBit) != 0)
+                        {
+                            if (++count > 1)
+                                break;
+                            pos = idx;
+                        }
+                    }
+
+                    if (count == 1)
+                    {
+                        Assign(pos, value);
+                    }
+                }
             }
         }
 
