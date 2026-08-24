@@ -134,6 +134,9 @@ public static class V3Solver
 
             void FindHiddenSingles(ReadOnlySpan<byte> cells, int used)
             {
+                if (used == FullMask)
+                    return;
+
                 for (var value = 1; value <= BoardSize; value++)
                 {
                     var valueBit = 1 << value;

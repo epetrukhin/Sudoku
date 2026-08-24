@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "mcp__plugin_codegraph_codegraph__codegraph_explore",
-      "Bash(dotnet build *)"
+      "Bash(dotnet build *)",
+      "Bash(dotnet run *)"
     ]
   }
 }
