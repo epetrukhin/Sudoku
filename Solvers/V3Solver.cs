@@ -37,8 +37,7 @@ public static class V3Solver
 
         public Board(char[][] board) : this()
         {
-            for (var i = 0; i < CellsCount; i++)
-                _candidates[i] = FullMask;
+            Array.Fill(_candidates, FullMask);
 
             for (var ri = 0; ri < BoardSize; ri++)
             {
