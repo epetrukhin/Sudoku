@@ -9,7 +9,8 @@ namespace Benchmarks;
 public class Behchmarks
 {
     private const int V1OperationPerInvoke = 50;
-    private const int V2OperationPerInvoke = 500;
+    private const int V2OperationPerInvoke = 1_000;
+    private const int V3OperationPerInvoke = 1_000;
 
     private static readonly char[][] Result = new char[Constants.BoardSize][];
 
@@ -56,29 +57,40 @@ public class Behchmarks
         }
     }
 
-    [Benchmark(Baseline = true, OperationsPerInvoke = V1OperationPerInvoke), BenchmarkCategory("V1")]
-    public void V1Easy()
+    private static void V3Solve(char[][][] sudokus)
     {
-        V1Solve(Easy);
+        var result = Result;
+
+        for (var i = 0; i < V3OperationPerInvoke; i++)
+        {
+            foreach (var sudoku in sudokus)
+                V3Solver.Solve(sudoku, result);
+        }
     }
 
-    [Benchmark(OperationsPerInvoke = V1OperationPerInvoke), BenchmarkCategory("V1")]
-    public void V1Medium()
-    {
-        V1Solve(Medium);
-    }
-
-    [Benchmark(OperationsPerInvoke = V1OperationPerInvoke), BenchmarkCategory("V1")]
-    public void V1Hard()
-    {
-        V1Solve(Hard);
-    }
-
-    [Benchmark(OperationsPerInvoke = V1OperationPerInvoke), BenchmarkCategory("V1")]
-    public void V1Diabolical()
-    {
-        V1Solve(Diabolical);
-    }
+    // [Benchmark(Baseline = true, OperationsPerInvoke = V1OperationPerInvoke), BenchmarkCategory("V1")]
+    // public void V1Easy()
+    // {
+    //     V1Solve(Easy);
+    // }
+    //
+    // [Benchmark(OperationsPerInvoke = V1OperationPerInvoke), BenchmarkCategory("V1")]
+    // public void V1Medium()
+    // {
+    //     V1Solve(Medium);
+    // }
+    //
+    // [Benchmark(OperationsPerInvoke = V1OperationPerInvoke), BenchmarkCategory("V1")]
+    // public void V1Hard()
+    // {
+    //     V1Solve(Hard);
+    // }
+    //
+    // [Benchmark(OperationsPerInvoke = V1OperationPerInvoke), BenchmarkCategory("V1")]
+    // public void V1Diabolical()
+    // {
+    //     V1Solve(Diabolical);
+    // }
 
     [Benchmark(Baseline = true, OperationsPerInvoke = V2OperationPerInvoke), BenchmarkCategory("V2")]
     public void V2Easy()
@@ -102,5 +114,29 @@ public class Behchmarks
     public void V2Diabolical()
     {
         V2Solve(Diabolical);
+    }
+
+    [Benchmark(Baseline = true, OperationsPerInvoke = V3OperationPerInvoke), BenchmarkCategory("V3")]
+    public void V3Easy()
+    {
+        V3Solve(Easy);
+    }
+
+    [Benchmark(OperationsPerInvoke = V3OperationPerInvoke), BenchmarkCategory("V3")]
+    public void V3Medium()
+    {
+        V3Solve(Medium);
+    }
+
+    [Benchmark(OperationsPerInvoke = V3OperationPerInvoke), BenchmarkCategory("V3")]
+    public void V3Hard()
+    {
+        V3Solve(Hard);
+    }
+
+    [Benchmark(OperationsPerInvoke = V3OperationPerInvoke), BenchmarkCategory("V3")]
+    public void V3Diabolical()
+    {
+        V3Solve(Diabolical);
     }
 }

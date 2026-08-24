@@ -34,18 +34,28 @@ internal static class Program
         var v2 = FormatConverter.FromSudokuWikiToLeetCode(sudoku);
         V2Solver.Solve(v2, v2);
 
-        if (FormatConverter.FromLeetCodeToSudokuWiki(v1) != FormatConverter.FromLeetCodeToSudokuWiki(v2))
-            Dump(v1, v2);
+        var v3 = FormatConverter.FromSudokuWikiToLeetCode(sudoku);
+        V3Solver.Solve(v3, v3);
+
+        var v1Wiki = FormatConverter.FromLeetCodeToSudokuWiki(v1);
+        var v2Wiki = FormatConverter.FromLeetCodeToSudokuWiki(v2);
+        var v3Wiki = FormatConverter.FromLeetCodeToSudokuWiki(v3);
+
+        if (v1Wiki != v2Wiki || v1Wiki != v3Wiki)
+            Dump(v1, v2, v3);
     }
 
-    private static void Dump(char[][] left, char[][] right)
+    private static void Dump(char[][] left, char[][] middle, char[][] right)
     {
         for (var ri = 0; ri < BoardSize; ri++)
         {
             var sourceRow = left[ri];
+            var middleRow = middle[ri];
             var solvedRow = right[ri];
 
             Console.Write(new string(sourceRow));
+            Console.Write('\t');
+            Console.Write(new string(middleRow));
             Console.Write('\t');
             Console.WriteLine(new string(solvedRow));
         }
