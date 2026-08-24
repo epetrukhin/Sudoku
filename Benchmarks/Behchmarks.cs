@@ -9,8 +9,8 @@ namespace Benchmarks;
 public class Behchmarks
 {
     private const int V1OperationPerInvoke = 50;
-    private const int V2OperationPerInvoke = 1_000;
-    private const int V3OperationPerInvoke = 1_000;
+    private const int V2OperationPerInvoke = 2_000;
+    private const int V3OperationPerInvoke = 2_000;
 
     private static readonly char[][] Result = new char[Constants.BoardSize][];
 
