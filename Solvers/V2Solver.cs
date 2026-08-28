@@ -167,7 +167,7 @@ public static class V2Solver
                     var count = 0;
                     foreach (var idx in cells)
                     {
-                        if (!_solved[idx] && (_candidates[idx] & valueBit) != 0)
+                        if ((_candidates[idx] & valueBit) != 0)
                         {
                             if (++count > 1)
                                 break;
