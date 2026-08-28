@@ -8,9 +8,9 @@ namespace Benchmarks;
 // ReSharper disable once ClassCanBeSealed.Global
 public class Behchmarks
 {
-    private const int V1OperationPerInvoke = 50;
-    private const int V2OperationPerInvoke = 2_000;
-    private const int V3OperationPerInvoke = 2_000;
+    private const int V1OperationPerInvoke = 100;
+    private const int V2OperationPerInvoke = 5_000;
+    private const int V3OperationPerInvoke = 5_000;
 
     private static readonly char[][] Result = new char[Constants.BoardSize][];
 

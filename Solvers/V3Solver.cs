@@ -103,18 +103,8 @@ public static class V3Solver
                 var solvedBeforePropogation = _solvedCount;
 
                 // naked singles: единственный кандидат → фиксируем
-                for (var idx = 0; idx < CellsCount; idx++)
-                {
-                    if (_solved[idx])
-                        continue;
-
-                    var candidate = _candidates[idx];
-                    if (candidate == 0)
-                        return false;
-
-                    if ((candidate & (candidate - 1)) == 0)
-                        Assign(idx, BitOperations.TrailingZeroCount(candidate));
-                }
+                if (!AssignNakedSingles())
+                    return false;
 
                 // hidden singles: строки
                 for (var row = 0; row < BoardSize; row++)
@@ -130,6 +120,36 @@ public static class V3Solver
 
                 if (_solvedCount == solvedBeforePropogation)
                     return true;
+            }
+
+            bool AssignNakedSingles()
+            {
+                // Полный проход по клеткам повторяется, пока хотя бы один
+                // naked single был найден в предыдущем проходе: фиксация одной
+                // клетки может открыть новую одиночку у её соседей.
+                while (true)
+                {
+                    var anyAssigned = false;
+
+                    for (var idx = 0; idx < CellsCount; idx++)
+                    {
+                        if (_solved[idx])
+                            continue;
+
+                        var candidate = _candidates[idx];
+                        if (candidate == 0)
+                            return false;
+
+                        if ((candidate & (candidate - 1)) == 0)
+                        {
+                            Assign(idx, BitOperations.TrailingZeroCount(candidate));
+                            anyAssigned = true;
+                        }
+                    }
+
+                    if (!anyAssigned)
+                        return true;
+                }
             }
 
             void FindHiddenSingles(ReadOnlySpan<byte> cells, int used)

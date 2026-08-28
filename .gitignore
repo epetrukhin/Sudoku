@@ -83,3 +83,5 @@ x86/
 
 # Publish Web Output
 *.[Pp]ublish.xml
+# CodeGraph index
+.codegraph/
