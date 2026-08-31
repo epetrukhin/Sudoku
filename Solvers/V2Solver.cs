@@ -148,14 +148,14 @@ public static class V2Solver
 
             void FindHiddenSingles(ReadOnlySpan<byte> cells, int used)
             {
-                if (used == FullMask)
-                    return;
+                // Итерируем только по свободным (ещё не занятым в группе) значениям:
+                // маска ~used сразу даёт их набор, занятые пропускаются без проверки.
+                var free = FullMask & ~used;
 
-                for (var value = 1; value <= BoardSize; value++)
+                while (free != 0)
                 {
+                    var value = BitOperations.TrailingZeroCount(free);
                     var valueBit = 1 << value;
-                    if ((used & valueBit) != 0)
-                        continue;
 
                     var pos = -1;
                     var count = 0;
@@ -170,9 +170,9 @@ public static class V2Solver
                     }
 
                     if (count == 1)
-                    {
                         Assign(pos, value);
-                    }
+
+                    free &= free - 1;
                 }
             }
         }
