@@ -21,18 +21,14 @@ public static class V3Solver
     {
         private readonly int[] _candidates; // маска кандидатов для каждой из 81 клетки
         private readonly bool[] _solved;    // зафиксирована ли клетка в масках занятости
-        private readonly int[] _rowMask;    // занятые значения по строкам
-        private readonly int[] _colMask;    // занятые значения по столбцам
-        private readonly int[] _boxMask;    // занятые значения по боксам
+        private readonly int[] _groupMask;  // занятые значения: [0..8] строки, [9..17] столбцы, [18..26] боксы
         private int _solvedCount;
 
         private Board()
         {
             _candidates = new int[CellsCount];
             _solved = new bool[CellsCount];
-            _rowMask = new int[BoardSize];
-            _colMask = new int[BoardSize];
-            _boxMask = new int[BoardSize];
+            _groupMask = new int[BoardSize * 3];
         }
 
         public Board(char[][] board) : this()
@@ -56,9 +52,7 @@ public static class V3Solver
             var copy = new Board();
             Array.Copy(_candidates, copy._candidates, CellsCount);
             Array.Copy(_solved, copy._solved, CellsCount);
-            Array.Copy(_rowMask, copy._rowMask, BoardSize);
-            Array.Copy(_colMask, copy._colMask, BoardSize);
-            Array.Copy(_boxMask, copy._boxMask, BoardSize);
+            Array.Copy(_groupMask, copy._groupMask, BoardSize * 3);
             copy._solvedCount = _solvedCount;
             return copy;
         }
@@ -73,9 +67,9 @@ public static class V3Solver
             var box = BoxOf[idx];
             var valueBit = 1 << value;
 
-            _rowMask[row] |= valueBit;
-            _colMask[col] |= valueBit;
-            _boxMask[box] |= valueBit;
+            _groupMask[row] |= valueBit;
+            _groupMask[BoardSize + col] |= valueBit;
+            _groupMask[BoardSize * 2 + box] |= valueBit;
 
             var removeMask = ~valueBit;
 
@@ -108,15 +102,15 @@ public static class V3Solver
 
                 // hidden singles: строки
                 for (var row = 0; row < BoardSize; row++)
-                    FindHiddenSingles(GetRowIndexes(row), _rowMask[row]);
+                    FindHiddenSingles(GetRowIndexes(row), _groupMask[row]);
 
                 // hidden singles: столбцы
                 for (var col = 0; col < BoardSize; col++)
-                    FindHiddenSingles(GetColumnIndexes(col), _colMask[col]);
+                    FindHiddenSingles(GetColumnIndexes(col), _groupMask[BoardSize + col]);
 
                 // hidden singles: боксы
                 for (var box = 0; box < BoardSize; box++)
-                    FindHiddenSingles(GetBoxIndexes(box), _boxMask[box]);
+                    FindHiddenSingles(GetBoxIndexes(box), _groupMask[BoardSize * 2 + box]);
 
                 if (_solvedCount == solvedBeforePropogation)
                     return true;
