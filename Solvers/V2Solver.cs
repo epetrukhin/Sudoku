@@ -47,14 +47,12 @@ public static class V2Solver
             }
         }
 
-        private Board Clone()
+        private void CopyTo(Board target)
         {
-            var copy = new Board();
-            Array.Copy(_candidates, copy._candidates, CellsCount);
-            Array.Copy(_solved, copy._solved, CellsCount);
-            Array.Copy(_groupMask, copy._groupMask, BoardSize * 3);
-            copy._solvedCount = _solvedCount;
-            return copy;
+            Array.Copy(_candidates, target._candidates, CellsCount);
+            Array.Copy(_solved, target._solved, CellsCount);
+            Array.Copy(_groupMask, target._groupMask, BoardSize * 3);
+            target._solvedCount = _solvedCount;
         }
 
         // Фиксирует в клетке значение: обновляет маски занятости и редуцирует
@@ -208,12 +206,13 @@ public static class V2Solver
                 }
             }
 
+            var clone = new Board();
             var candidates = board._candidates[bestIdx];
             while (candidates != 0)
             {
                 var v = BitOperations.TrailingZeroCount(candidates);
 
-                var clone = board.Clone();
+                board.CopyTo(clone);
                 clone.Assign(bestIdx, v);
 
                 var result = Solve(clone);
