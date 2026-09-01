@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using static Solvers.Constants;
 
 namespace Solvers;
@@ -19,21 +20,29 @@ public static class V3Solver
 
     private sealed class Board
     {
-        private readonly int[] _candidates; // маска кандидатов для каждой из 81 клетки
-        private readonly bool[] _solved;    // зафиксирована ли клетка в масках занятости
-        private readonly int[] _groupMask;  // занятые значения: [0..8] строки, [9..17] столбцы, [18..26] боксы
+        // InlineArray-структуры хранят данные внутри объекта Board —
+        // без отдельного выделения в куче, как у обычных массивов.
+
+        [InlineArray(CellsCount)]
+        private struct Candidates { private int _e0; }
+
+        [InlineArray(CellsCount)]
+        private struct Solved { private bool _e0; }
+
+        [InlineArray(BoardSize * 3)]
+        private struct GroupMask { private int _e0; }
+
+        private Candidates _candidates; // маска кандидатов для каждой из 81 клетки
+        private Solved _solved;         // зафиксирована ли клетка в масках занятости
+        private GroupMask _groupMask;   // занятые значения: [0..8] строки, [9..17] столбцы, [18..26] боксы
         private int _solvedCount;
 
         private Board()
-        {
-            _candidates = new int[CellsCount];
-            _solved = new bool[CellsCount];
-            _groupMask = new int[BoardSize * 3];
-        }
+        {}
 
-        public Board(char[][] board) : this()
+        public Board(char[][] board)
         {
-            Array.Fill(_candidates, FullMask);
+            ((Span<int>)_candidates).Fill(FullMask);
 
             for (var ri = 0; ri < BoardSize; ri++)
             {
@@ -49,9 +58,9 @@ public static class V3Solver
 
         private void CopyTo(Board target)
         {
-            Array.Copy(_candidates, target._candidates, CellsCount);
-            Array.Copy(_solved, target._solved, CellsCount);
-            Array.Copy(_groupMask, target._groupMask, BoardSize * 3);
+            ((Span<int>)_candidates).CopyTo(target._candidates);
+            ((Span<bool>)_solved).CopyTo(target._solved);
+            ((Span<int>)_groupMask).CopyTo(target._groupMask);
             target._solvedCount = _solvedCount;
         }
 
