@@ -80,19 +80,14 @@ public static class V2Solver
 
             var removeMask = ~valueBit;
 
-            RemoveFromGroup(GetRowIndexes(row), removeMask);
-            RemoveFromGroup(GetColumnIndexes(col), removeMask);
-            RemoveFromGroup(GetBoxIndexes(box), removeMask);
+            // Единый предрасчитанный набор «видимых» ячеек вместо трёх
+            // отдельных обходов строки/столбца/бокса.
+            foreach (var i in GetClearIndexes(idx))
+                _candidates[i] &= removeMask;
 
             _candidates[idx] = valueBit;
             _solved[idx] = true;
             _solvedCount++;
-
-            void RemoveFromGroup(ReadOnlySpan<byte> cells, int mask)
-            {
-                foreach (var j in cells)
-                    _candidates[j] &= mask;
-            }
         }
 
         // Constraint propagation: naked singles и hidden singles, пока не сойдётся.
