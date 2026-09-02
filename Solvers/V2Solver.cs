@@ -24,13 +24,13 @@ public static class V2Solver
         // без отдельного выделения в куче, как у обычных массивов.
 
         [InlineArray(CellsCount)]
-        private struct Candidates { private int _e0; }
+        private struct Candidates { private int _e; }
 
         [InlineArray(CellsCount)]
-        private struct Solved { private bool _e0; }
+        private struct Solved { private bool _e; }
 
         [InlineArray(BoardSize * 3)]
-        private struct GroupMask { private int _e0; }
+        private struct GroupMask { private int _e; }
 
         private Candidates _candidates; // маска кандидатов для каждой из 81 клетки
         private Solved _solved;         // зафиксирована ли клетка в масках занятости

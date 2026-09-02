@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="Benchmarks/Benchmarks.csproj" />
+  <Project Path="LeetCode/LeetCode.csproj" />
   <Project Path="Runner/Runner.csproj" />
   <Project Path="Solvers/Solvers.csproj" />
   <Project Path="Tests/Tests.csproj" />
